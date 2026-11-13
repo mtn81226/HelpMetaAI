@@ -34,10 +34,17 @@
     {
       "id": "b099ee0e-e0e6-43d6-ac2f-46fdb6e65f0c",
       "name": "Validate Required Fields",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "if (!$json.title || !$json.description) throw new Error('Ticket title and description are required');\nreturn [{ json: { ...$json, validation: { valid: true, checkedAt: new Date().toISOString() } } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.title }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         480,
@@ -63,7 +70,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const text = (($json.title || '') + ' ' + ($json.description || '')).toLowerCase(); const category = $json.category || 'Other'; let actionSteps = []; if (category === 'Network') { if (text.includes('wifi') || text.includes('wi-fi')) { actionSteps = ['1. Tắt Wi-Fi trên thiết bị, chờ 10 giây và bật lại.', '2. Chọn \"Quên mạng\" (Forget Network) và kết nối lại đúng mạng công ty.', '3. Thử mở trình duyệt ở chế độ ẩn danh để kiểm tra cổng đăng nhập.']; } else if (text.includes('vpn')) { actionSteps = ['1. Ngắt kết nối VPN hiện tại và đóng hoàn toàn ứng dụng VPN.', '2. Kiểm tra mạng Internet thông thường trước khi kết nối lại VPN.', '3. Xác nhận tài khoản xác thực 2 bước (2FA) vẫn đang hoạt động.']; } else { actionSteps = ['1. Kiểm tra giắc cắm cáp mạng LAN ở phía sau máy tính.', '2. Khởi động lại card mạng hoặc máy tính.', '3. Kiểm tra xem đồng nghiệp cùng phòng có bị mất mạng không.']; } } else if (category === 'Hardware') { if (text.includes('in') || text.includes('printer')) { actionSteps = ['1. Kiểm tra nguồn máy in, khay giấy và thông báo kẹt giấy.', '2. Khởi động lại dịch vụ Print Spooler hoặc khởi động lại máy in.', '3. Thử in một trang thử nghiệm (Test Page).']; } else if (text.includes('màn hình') || text.includes('monitor') || text.includes('screen')) { actionSteps = ['1. Kiểm tra dây nguồn và cáp tín hiệu HDMI/DisplayPort.', '2. Nhấn tổ hợp phím Windows + Ctrl + Shift + B để reset driver màn hình.', '3. Kiểm tra đèn báo tín hiệu trên màn hình.']; } else { actionSteps = ['1. Rút kết nối thiết bị và cắm lại vào cổng USB khác.', '2. Khởi động lại máy tính.', '3. Ghi lại mã lỗi hoặc đèn tín hiệu bất thường nếu có.']; } } else if (category === 'Software') { if (text.includes('treo') || text.includes('đơ') || text.includes('crash') || text.includes('freeze')) { actionSteps = ['1. Mở Task Manager (Ctrl + Shift + Esc) và End Task ứng dụng đang treo.', '2. Lưu công việc và khởi động lại máy tính.', '3. Mở lại ứng dụng xem lỗi có lặp lại không.']; } else { actionSteps = ['1. Đảm bảo ứng dụng được cài từ Company Portal hoặc nguồn chính thức.', '2. Khởi động lại ứng dụng và ghi lại thông báo lỗi.', '3. Chụp ảnh màn hình thông báo lỗi.']; } } else if (category === 'Account & Access') { actionSteps = ['1. Kiểm tra kỹ bộ gõ tiếng Việt và phím Caps Lock.', '2. Sử dụng chức năng Quên mật khẩu trên trang đăng nhập chính thức.', '3. Không chia sẻ mật khẩu hoặc mã OTP cho bất kỳ ai.']; } else if (category === 'Security') { actionSteps = ['1. Ngắt kết nối mạng (rút dây LAN hoặc tắt Wi-Fi) ngay lập tức.', '2. Không nhấp vào bất kỳ liên kết hoặc tệp đính kèm đáng ngờ nào.', '3. Báo ngay cho bộ phận An toàn thông tin (SOC) theo số hotline khẩn cấp.']; } else { actionSteps = ['1. Lưu toàn bộ tài liệu đang mở và khởi động lại máy tính.', '2. Ghi lại thời điểm bắt đầu xảy ra sự cố và các thao tác trước đó.', '3. Chờ kỹ thuật viên liên hệ hỗ trợ trong thời gian cam kết.']; } const responseGuidance = actionSteps.join(' '); return [{ json: { ...$json, responseGuidance, responseActionSteps: actionSteps } }];"
+        "jsCode": "const text = (($json.title || '') + ' ' + ($json.description || '')).toLowerCase();\nconst category = $json.category || 'Other';\nlet actionSteps = [];\nif (/wifi|wi-fi|mạng|network|internet|mất mạng/i.test(text)) {\n  actionSteps = [\n    '1. Tắt Wi-Fi trên thiết bị, chờ 10 giây và bật lại.',\n    '2. Chọn \"Quên mạng\" (Forget Network) và kết nối lại đúng mạng công ty.',\n    '3. Thử mở trình duyệt ở chế độ ẩn danh để kiểm tra cổng đăng nhập.'\n  ];\n} else if (/vpn|kết nối từ xa/i.test(text)) {\n  actionSteps = [\n    '1. Ngắt kết nối VPN hiện tại và đóng hoàn toàn ứng dụng VPN.',\n    '2. Kiểm tra mạng Internet thông thường trước khi kết nối lại VPN.',\n    '3. Xác nhận tài khoản xác thực 2 bước (2FA) vẫn đang hoạt động.'\n  ];\n} else if (/máy in|in|printer/i.test(text)) {\n  actionSteps = [\n    '1. Kiểm tra nguồn máy in, khay giấy và thông báo kẹt giấy.',\n    '2. Khởi động lại dịch vụ Print Spooler hoặc khởi động lại máy in.',\n    '3. Thử in một trang thử nghiệm (Test Page).'\n  ];\n} else if (/treo|đơ|crash|freeze|không phản hồi|lỗi phần mềm/i.test(text)) {\n  actionSteps = [\n    '1. Nhấn Ctrl + Shift + Esc mở Task Manager và buộc dừng ứng dụng bị đơ.',\n    '2. Kiểm tra cập nhật phần mềm hoặc khởi động lại máy tính.',\n    '3. Chụp lại ảnh màn hình thông báo lỗi (nếu có) gửi kèm ticket.'\n  ];\n} else if (category === 'Security') {\n  actionSteps = [\n    '1. Ngắt ngay kết nối mạng (rút dây LAN hoặc tắt Wi-Fi).',\n    '2. Tuyệt đối không nhấp vào đường link lạ hoặc mở file đính kèm.',\n    '3. Giữ nguyên hiện trạng máy và chờ chuyên viên bảo mật tiếp cận khẩn cấp.'\n  ];\n} else {\n  actionSteps = [\n    '1. Lưu toàn bộ tài liệu đang mở và khởi động lại máy tính.',\n    '2. Ghi lại thời điểm bắt đầu xảy ra sự cố và các thao tác trước đó.',\n    '3. Chờ kỹ thuật viên liên hệ hỗ trợ trong thời gian cam kết.'\n  ];\n}\nconst responseGuidance = actionSteps.join(' ');\nreturn [{ json: { ...$json, responseGuidance, responseActionSteps: actionSteps, firstTroubleshootingStep: actionSteps[0] } }];"
       },
       "position": [
         960,
@@ -85,11 +92,24 @@
     },
     {
       "id": "57b8d8a8-d2b0-4964-9e3f-e29eeeb16008",
-      "name": "Add First Troubleshooting Step",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Set Response Baseline",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const firstStep = Array.isArray($json.responseActionSteps) && $json.responseActionSteps.length > 0 ? $json.responseActionSteps[0] : $json.responseGuidance; return [{ json: { ...$json, firstTroubleshootingStep: firstStep } }];"
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "slaStandard",
+              "value": "itil-v4"
+            },
+            {
+              "name": "securityPolicy",
+              "value": "strict-no-credentials"
+            }
+          ]
+        },
+        "options": {}
       },
       "position": [
         1440,
@@ -98,11 +118,18 @@
     },
     {
       "id": "bb51fc0d-5897-44eb-823c-5c61b4f762d3",
-      "name": "Apply Credential Safety Check",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Check Credential Safety",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const textToCheck = ($json.responseGuidance || '') + ' ' + ($json.responseAcknowledgement || ''); const safe = !/yêu cầu mật khẩu|nhập mật khẩu|gửi otp|cung cấp otp/i.test(textToCheck); return [{ json: { ...$json, responseSafety: { noSecretRequested: safe, checkedAt: new Date().toISOString() } } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.responseAcknowledgement }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         1680,
@@ -247,25 +274,25 @@
       "main": [
         [
           {
-            "node": "Add First Troubleshooting Step",
+            "node": "Set Response Baseline",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add First Troubleshooting Step": {
+    "Set Response Baseline": {
       "main": [
         [
           {
-            "node": "Apply Credential Safety Check",
+            "node": "Check Credential Safety",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Apply Credential Safety Check": {
+    "Check Credential Safety": {
       "main": [
         [
           {

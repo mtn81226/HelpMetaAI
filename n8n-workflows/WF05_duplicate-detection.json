@@ -34,10 +34,17 @@
     {
       "id": "5c9caeb5-559d-432e-9a80-f9b786175eb6",
       "name": "Validate Required Fields",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "if (!$json.title || !$json.description) throw new Error('Ticket title and description are required');\nreturn [{ json: { ...$json, validation: { valid: true, checkedAt: new Date().toISOString() } } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.title }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         480,
@@ -76,7 +83,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const rawText = $json.duplicateSearchText || ''; const stopwords = new Set(['toi', 'la', 'bi', 'khong', 'duoc', 'cho', 'va', 'tai', 'tren', 'trong', 'nhung', 'cac', 'cua', 'nay', 'voi', 'lam', 'sao', 'gi', 'the', 'nao', 'biet', 'xin', 'giup', 'can', 'alo', 'em', 'anh', 'chi', 'ticket', 'gap', 'the', 'is', 'at', 'which', 'on', 'in', 'and', 'for', 'to', 'with']); const words = rawText.split(' ').filter(w => w.length >= 3 && !stopwords.has(w)); const uniqueSorted = [...new Set(words)].sort(); const fingerprint = `${$json.category || 'Other'}|${uniqueSorted.slice(0, 15).join('|')}`; return [{ json: { ...$json, duplicateFingerprint: fingerprint } }];"
+        "jsCode": "const rawText = $json.duplicateSearchText || '';\nconst stopwords = new Set([\n  'toi', 'la', 'bi', 'khong', 'duoc', 'cho', 'va', 'tai', 'tren', 'trong',\n  'nhung', 'cac', 'cua', 'nay', 'voi', 'lam', 'sao', 'gi', 'the', 'nao',\n  'biet', 'xin', 'giup', 'can', 'alo', 'em', 'anh', 'chi', 'ticket', 'gap',\n  'the', 'is', 'at', 'which', 'on', 'in', 'and', 'for', 'to', 'with'\n]);\nconst words = rawText.split(' ').filter(w => w.length >= 3 && !stopwords.has(w));\nconst uniqueSorted = [...new Set(words)].sort();\nconst fingerprint = `${$json.category || 'Other'}|${uniqueSorted.slice(0, 15).join('|')}`;\nconst keywords = uniqueSorted.slice(0, 12);\nconst signature = `${$json.category || 'Other'}#${$json.priority || 'Medium'}#${keywords.slice(0, 4).sort().join('-')}`;\nreturn [{ json: { ...$json, duplicateFingerprint: fingerprint, duplicateKeywords: keywords, duplicateSignature: signature } }];"
       },
       "position": [
         1200,
@@ -85,11 +92,24 @@
     },
     {
       "id": "2d1c4557-45bf-4649-b63b-5ed23dbc8603",
-      "name": "Extract Search Keywords",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Set Dedup Baseline",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const rawText = $json.duplicateSearchText || ''; const stopwords = new Set(['toi', 'la', 'bi', 'khong', 'duoc', 'cho', 'va', 'tai', 'tren', 'trong', 'nhung', 'cac', 'cua', 'nay', 'voi', 'lam', 'sao', 'gi', 'the', 'nao', 'biet', 'xin', 'giup', 'can', 'alo', 'em', 'anh', 'chi', 'ticket', 'gap']); const keywords = [...new Set(rawText.split(' ').filter(w => w.length >= 3 && !stopwords.has(w)))].slice(0, 12); const signature = `${$json.category || 'Other'}#${$json.priority || 'Medium'}#${keywords.slice(0, 4).sort().join('-')}`; return [{ json: { ...$json, duplicateKeywords: keywords, duplicateSignature: signature } }];"
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "dedupAlgorithm",
+              "value": "unicode-nfd-signature"
+            },
+            {
+              "name": "dedupScope",
+              "value": "active-tickets"
+            }
+          ]
+        },
+        "options": {}
       },
       "position": [
         1440,
@@ -98,11 +118,18 @@
     },
     {
       "id": "7332ae07-b841-41e2-9e8d-b689df7ec218",
-      "name": "Compare Available Ticket Context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Check Duplicate Context",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const sameId = Boolean($json.existingTicketId && $json.existingTicketId === $json.ticketId); const sameFingerprint = Boolean($json.existingFingerprint && $json.existingFingerprint === $json.duplicateFingerprint); const isCandidate = sameId || sameFingerprint; const matchId = sameId ? $json.existingTicketId : (sameFingerprint ? ($json.existingTicketId || 'SIMILAR_FINGERPRINT_MATCH') : null); return [{ json: { ...$json, duplicateCandidate: isCandidate, duplicateMatchId: matchId } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.duplicateFingerprint }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         1680,
@@ -247,25 +274,25 @@
       "main": [
         [
           {
-            "node": "Extract Search Keywords",
+            "node": "Set Dedup Baseline",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Search Keywords": {
+    "Set Dedup Baseline": {
       "main": [
         [
           {
-            "node": "Compare Available Ticket Context",
+            "node": "Check Duplicate Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Compare Available Ticket Context": {
+    "Check Duplicate Context": {
       "main": [
         [
           {

@@ -34,10 +34,17 @@
     {
       "id": "5d6cfa2c-96ce-404f-b706-8f548ff45603",
       "name": "Validate Required Fields",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "if (!$json.title || !$json.description) throw new Error('Ticket title and description are required');\nreturn [{ json: { ...$json, validation: { valid: true, checkedAt: new Date().toISOString() } } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.title }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         480,
@@ -76,7 +83,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const category = $json.category || 'Other'; const priority = $json.priority || 'Medium'; const baseTeams = { Network: 'Network Support', Hardware: 'Hardware Support', Software: 'Software Support', 'Account & Access': 'Identity and Access Support', Security: 'Security Operations', Other: 'IT General' }; let team = $json.assignedTeam || baseTeams[category] || baseTeams.Other; if (priority === 'Critical' || priority === 'High') { if (category === 'Security') team = 'Security Operations (Tier 2 Incident Response)'; else if (category === 'Network' || category === 'Hardware') team = 'Infrastructure Operations (Tier 2)'; else team = 'Senior IT Support Team'; } return [{ json: { ...$json, assignedTeam: team } }];"
+        "jsCode": "const category = $json.category || 'Other';\nconst priority = $json.priority || 'Medium';\nconst baseTeams = {\n  Network: 'Network Support',\n  Hardware: 'Hardware Support',\n  Software: 'Software Support',\n  'Account & Access': 'Identity and Access Support',\n  Security: 'Security Operations',\n  Other: 'IT General'\n};\nlet team = $json.assignedTeam || baseTeams[category] || baseTeams.Other;\nif (priority === 'Critical' || priority === 'High') {\n  if (category === 'Security') team = 'Security Operations (Tier 2 Incident Response)';\n  else if (category === 'Network' || category === 'Hardware') team = 'Infrastructure Operations (Tier 2)';\n  else team = 'Senior IT Support Team';\n}\nconst baseQueues = {\n  Network: 'queue-network',\n  Hardware: 'queue-hardware',\n  Software: 'queue-software',\n  'Account & Access': 'queue-access',\n  Security: 'queue-security',\n  Other: 'queue-general'\n};\nlet queue = baseQueues[category] || baseQueues.Other;\nif (priority === 'Critical' || priority === 'High') {\n  queue = queue + '-escalated';\n}\nreturn [{ json: { ...$json, assignedTeam: team, assignmentQueue: queue } }];"
       },
       "position": [
         1200,
@@ -85,11 +92,24 @@
     },
     {
       "id": "e5ec5834-a8df-4cd3-b0c6-d46ed44adda5",
-      "name": "Select Assignment Queue",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Set Assignment Policy",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const priority = $json.priority || 'Medium'; const baseQueues = { Network: 'queue-network', Hardware: 'queue-hardware', Software: 'queue-software', 'Account & Access': 'queue-access', Security: 'queue-security', Other: 'queue-general' }; let queue = baseQueues[$json.category] || baseQueues.Other; if (priority === 'Critical' || priority === 'High') { queue = queue + '-escalated'; } return [{ json: { ...$json, assignmentQueue: queue } }];"
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "routingPolicy",
+              "value": "tier-based"
+            },
+            {
+              "name": "routingTier",
+              "value": "={{ $json.priority === \"Critical\" || $json.priority === \"High\" ? \"Tier-2\" : \"Tier-1\" }}"
+            }
+          ]
+        },
+        "options": {}
       },
       "position": [
         1440,
@@ -112,10 +132,17 @@
     {
       "id": "06ae163b-235b-41b4-8ddd-4e9d1c27bd82",
       "name": "Check Assignment Completeness",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "parameters": {
-        "jsCode": "const currentHour = new Date().getHours(); const isAfterHours = currentHour < 8 || currentHour >= 18; return [{ json: { ...$json, assignment: { team: $json.assignedTeam, queue: $json.assignmentQueue, assigned: Boolean($json.assignedTeam), shift: isAfterHours ? 'After-hours / On-call' : 'Standard Business Hours', assignedAt: new Date().toISOString() } } }];"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.assignedTeam }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "position": [
         1920,
@@ -247,14 +274,14 @@
       "main": [
         [
           {
-            "node": "Select Assignment Queue",
+            "node": "Set Assignment Policy",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Select Assignment Queue": {
+    "Set Assignment Policy": {
       "main": [
         [
           {
