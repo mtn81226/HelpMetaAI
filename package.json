@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:users": "node scripts/seed-users.mjs"
+    "seed:users": "node scripts/seed-users.mjs",
+    "test:wf04": "node tests/test-wf04-team-assignment.mjs",
+    "test:wf05": "node tests/test-wf05-duplicate-detection.mjs",
+    "test:wf06": "node tests/test-wf06-support-response.mjs",
+    "test:e2e": "node tests/test-e2e-pipeline.mjs",
+    "test:workflows": "node tests/test-wf04-team-assignment.mjs && node tests/test-wf05-duplicate-detection.mjs && node tests/test-wf06-support-response.mjs && node tests/test-e2e-pipeline.mjs"
   },
   "dependencies": {
     "mongoose": "^9.11.1",
