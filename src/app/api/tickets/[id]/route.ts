@@ -161,3 +161,39 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+    const { id } = await params;
+
+    if (!id || !id.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Ticket ID không hợp lệ." },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await Ticket.findOneAndDelete({ ticketId: id.trim() });
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: "Không tìm thấy ticket để xóa." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa ticket ${id} thành công.`,
+    });
+  } catch (error: unknown) {
+    console.error("DELETE /api/tickets/[id] error:", error);
+    return NextResponse.json(
+      { success: false, error: "Lỗi hệ thống khi xóa ticket." },
+      { status: 500 }
+    );
+  }
+}

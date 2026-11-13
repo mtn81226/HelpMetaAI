@@ -63,7 +63,7 @@ type ChatMessage = {
   text: string;
 };
 
-type Page = "overview" | "chat" | "tickets" | "knowledge";
+type Page = "overview" | "chat" | "tickets" | "knowledge" | "audit";
 
 type GuideStep = { title: string; body: string };
 type Guide = { category: string; title: string; intro: string; steps: GuideStep[]; escalation: string };
@@ -85,11 +85,13 @@ const navItems: {
   id: Page;
   icon: string;
   label: string;
+  adminOnly?: boolean;
 }[] = [
   { id: "overview", icon: "▦", label: "Tổng quan" },
   { id: "chat", icon: "✳", label: "Trợ lý AI" },
   { id: "tickets", icon: "▤", label: "Quản lý ticket" },
   { id: "knowledge", icon: "▧", label: "Kho kiến thức" },
+  { id: "audit", icon: "👑", label: "Audit Log & Pipeline", adminOnly: true },
 ];
 
 const guides: Record<string, Guide> = {
@@ -315,6 +317,52 @@ export default function Home() {
   const shortName = currentUser?.name
     ? currentUser.name.split(" ").filter(Boolean).pop() || "Ngân"
     : "Ngân";
+
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const loadAuditLogs = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch("/api/audit");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.auditLogs)) {
+        setAuditLogs(data.auditLogs);
+      }
+    } catch (err) {
+      console.error("Failed to load audit logs:", err);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (page === "audit" && currentUser.role === "admin") {
+      loadAuditLogs();
+    }
+  }, [page, currentUser.role, loadAuditLogs]);
+
+  const handleDeleteTicket = async (ticketId: string) => {
+    if (currentUser.role !== "admin") {
+      notify("Chỉ Quản trị viên mới có quyền xóa ticket!");
+      return;
+    }
+    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn ticket #${ticketId} khỏi hệ thống không?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Không thể xóa ticket");
+      }
+      notify(`Đã xóa vĩnh viễn ticket #${ticketId}`);
+      setSelectedTicket(null);
+      setRefreshTicketList((v) => v + 1);
+    } catch (err: any) {
+      notify(err.message || "Lỗi khi xóa ticket");
+    }
+  };
   const [ticketSummary, setTicketSummary] = useState<TicketSummary>(emptyTicketSummary);
   const [ticketTotal, setTicketTotal] = useState(0);
   const [ticketTotalPages, setTicketTotalPages] = useState(1);
@@ -744,7 +792,9 @@ export default function Home() {
         <div className="workspace-label">WORKSPACE</div>
 
         <nav className="nav-list">
-          {navItems.map((item) => (
+          {navItems
+            .filter((item) => !item.adminOnly || currentUser.role === "admin")
+            .map((item) => (
             <button
               key={item.id}
               className={`nav-item ${page === item.id ? "active" : ""}`}
@@ -758,6 +808,21 @@ export default function Home() {
               {item.id === "tickets" && (
                 <span className="nav-count">
                   {ticketSummary.open + ticketSummary.inProgress}
+                </span>
+              )}
+              {item.id === "audit" && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    background: "linear-gradient(135deg, #7c6af3, #5744d5)",
+                    color: "#fff",
+                    borderRadius: "6px",
+                    padding: "2px 6px",
+                    fontSize: "9px",
+                    fontWeight: 800,
+                  }}
+                >
+                  ADMIN
                 </span>
               )}
             </button>
@@ -812,6 +877,45 @@ export default function Home() {
           </div>
 
           <div className="top-actions">
+            {currentUser.role === "admin" ? (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "linear-gradient(135deg, #f5f3ff, #ebe5ff)",
+                  border: "1px solid #d4c7ff",
+                  color: "#5b45db",
+                  fontWeight: 800,
+                  fontSize: "11px",
+                  padding: "6px 12px",
+                  borderRadius: "20px",
+                  boxShadow: "0 2px 6px rgba(91, 69, 219, 0.12)",
+                }}
+              >
+                <span>👑</span>
+                <span>QUẢN TRỊ VIÊN HỆ THỐNG</span>
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  color: "#166534",
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  padding: "6px 12px",
+                  borderRadius: "20px",
+                }}
+              >
+                <span>👤</span>
+                <span>NHÂN VIÊN HELPDESK (L1)</span>
+              </span>
+            )}
+
             <span className={`system-status ${apiError ? "system-status-error" : ""}`}>
               <i /> {apiError ? "Kết nối ticket gián đoạn" : "Hệ thống hoạt động"}
             </span>
@@ -842,6 +946,91 @@ export default function Home() {
         <div className="content">
           {page === "overview" && (
             <>
+              {currentUser.role === "admin" ? (
+                <div style={{
+                  background: "linear-gradient(135deg, #2b274c, #1f1d36)",
+                  color: "#ffffff",
+                  borderRadius: "14px",
+                  padding: "16px 22px",
+                  marginBottom: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "14px",
+                  boxShadow: "0 8px 24px rgba(31, 29, 54, 0.2)"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <span style={{ fontSize: "24px" }}>🛡️</span>
+                    <div>
+                      <strong style={{ fontSize: "14px", display: "block" }}>
+                        Bảng Điều Khiển Quản Trị Hệ Thống (Admin Control Center)
+                      </strong>
+                      <span style={{ fontSize: "11px", color: "#a5a3c2" }}>
+                        Bạn đang có quyền tối cao: Giám sát toàn bộ 9 n8n Workflows, phân bổ VIP và quản lý bản ghi MongoDB Atlas.
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <span style={{
+                      background: "#3e3868",
+                      padding: "5px 10px",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#6ee7b7"
+                    }}>
+                      ● n8n Workflows: 9/9 Active
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage("audit")}
+                      style={{
+                        background: "#6856e8",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "7px 14px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Xem Audit Log WF09 →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  color: "#334155",
+                  borderRadius: "12px",
+                  padding: "12px 18px",
+                  marginBottom: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "12px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span>ℹ️</span>
+                    <span>
+                      <strong>Không gian làm việc Nhân viên kỹ thuật:</strong> Bạn có quyền tiếp nhận, xử lý sự cố L1/L2 và cập nhật trạng thái ticket. Các quyền quản trị máy chủ và xóa ticket chỉ thuộc về Quản trị viên.
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: "11px",
+                    background: "#e2e8f0",
+                    color: "#475569",
+                    padding: "4px 8px",
+                    borderRadius: "6px",
+                    fontWeight: 600
+                  }}>
+                    Phân quyền L1 Support
+                  </span>
+                </div>
+              )}
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">TỔNG QUAN KHÔNG GIAN LÀM VIỆC</div>
@@ -1197,13 +1386,14 @@ export default function Home() {
                         <th>ĐỘI PHỤ TRÁCH</th>
                         <th>NGÀY TẠO</th>
                         <th>CẬP NHẬT</th>
+                        <th>THAO TÁC</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {ticketsLoading ? (
                         <tr>
-                          <td colSpan={7} className="empty-state">
+                          <td colSpan={8} className="empty-state">
                             <span className="loading-indicator" /> Đang tải danh sách ticket...
                           </td>
                         </tr>
@@ -1250,13 +1440,49 @@ export default function Home() {
                             <td>{ticket.owner}</td>
                             <td>{ticket.date}</td>
                             <td>{ticket.updatedDate || ticket.date}</td>
+
+                            <td onClick={(event) => event.stopPropagation()}>
+                              {currentUser.role === "admin" ? (
+                                <button
+                                  type="button"
+                                  style={{
+                                    background: "#fee2e2",
+                                    color: "#b91c1c",
+                                    border: "1px solid #fecaca",
+                                    borderRadius: "6px",
+                                    padding: "5px 10px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    cursor: "pointer"
+                                  }}
+                                  title="Xóa ticket khỏi MongoDB Atlas (Quyền Quản trị viên)"
+                                  onClick={() => handleDeleteTicket(ticket.id)}
+                                >
+                                  🗑 Xóa
+                                </button>
+                              ) : (
+                                <span
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "11px",
+                                    fontStyle: "italic",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "3px"
+                                  }}
+                                  title="Nhân viên chỉ có quyền cập nhật trạng thái xử lý"
+                                >
+                                  🔒 Chỉ sửa
+                                </span>
+                              )}
+                            </td>
                           </tr>
                         ))
                       )}
 
                       {!ticketsLoading && visibleTickets.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="empty-state">
+                          <td colSpan={8} className="empty-state">
                             <div className="empty-state-content">
                               <span className="empty-state-icon">⌕</span>
                               <strong>Không tìm thấy ticket phù hợp</strong>
@@ -1332,7 +1558,7 @@ export default function Home() {
 
                       {message.role === "user" && (
                         <div className="message-avatar user-message-avatar">
-                          MP
+                          {userInitials}
                         </div>
                       )}
                     </div>
@@ -1457,6 +1683,247 @@ export default function Home() {
                 {knowledgeCards.every(({ key }) => !matchesKnowledgeSearch(key, knowledgeQuery)) && <div className="knowledge-empty"><span>⌕</span><strong>Chưa tìm thấy hướng dẫn phù hợp</strong><p>Thử tìm với từ khóa khác như Wi-Fi, tài khoản hoặc phần mềm.</p></div>}
               </div>
             </>
+          )}
+
+          {page === "audit" && currentUser.role === "admin" && (
+            <div className="audit-page">
+              <div className="page-heading">
+                <div>
+                  <div className="eyebrow">GIÁM SÁT TOÀN CHUỖI TỰ ĐỘNG HÓA (WF01 - WF09)</div>
+                  <h1>
+                    Nhật Ký Kiểm Toán & Pipeline <span className="wave">✦</span>
+                  </h1>
+                  <p>
+                    Dữ liệu được lưu trữ tự động bởi Workflow 09 vào cơ sở dữ liệu MongoDB Atlas (Collection: ticket_audit).
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void loadAuditLogs()}
+                    disabled={auditLoading}
+                  >
+                    {auditLoading ? "Đang tải..." : "🔄 Làm mới dữ liệu"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats overview */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "16px",
+                marginBottom: "24px"
+              }}>
+                <div style={{
+                  background: "#fff",
+                  border: "1px solid #ececf4",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                }}>
+                  <div style={{
+                    width: "46px",
+                    height: "46px",
+                    borderRadius: "12px",
+                    background: "#f0edff",
+                    color: "#6856e8",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: "22px"
+                  }}>
+                    📜
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "11px", color: "#8a8da5", fontWeight: 700, textTransform: "uppercase" }}>
+                      Tổng số bản ghi Audit
+                    </span>
+                    <strong style={{ fontSize: "24px", display: "block", color: "#20213a" }}>
+                      {auditLogs.length}
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: "#fff",
+                  border: "1px solid #ececf4",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                }}>
+                  <div style={{
+                    width: "46px",
+                    height: "46px",
+                    borderRadius: "12px",
+                    background: "#ecfdf5",
+                    color: "#059669",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: "22px"
+                  }}>
+                    ⚡
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "11px", color: "#8a8da5", fontWeight: 700, textTransform: "uppercase" }}>
+                      Quy trình Tự động hóa
+                    </span>
+                    <strong style={{ fontSize: "16px", display: "block", color: "#059669" }}>
+                      9/9 Workflows Active
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: "#fff",
+                  border: "1px solid #ececf4",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                }}>
+                  <div style={{
+                    width: "46px",
+                    height: "46px",
+                    borderRadius: "12px",
+                    background: "#fff7ed",
+                    color: "#ea580c",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: "22px"
+                  }}>
+                    🛡️
+                  </div>
+                  <div>
+                    <span style={{ fontSize: "11px", color: "#8a8da5", fontWeight: 700, textTransform: "uppercase" }}>
+                      Cơ sở dữ liệu Kiểm toán
+                    </span>
+                    <strong style={{ fontSize: "16px", display: "block", color: "#ea580c" }}>
+                      MongoDB Atlas Live
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Audit Table */}
+              <div style={{
+                background: "#ffffff",
+                borderRadius: "14px",
+                border: "1px solid #ececf4",
+                overflow: "hidden",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.02)"
+              }}>
+                <div style={{
+                  padding: "20px 24px",
+                  borderBottom: "1px solid #ececf4",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}>
+                  <div>
+                    <h2 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800 }}>
+                      Nhật Ký Kiểm Toán Xử Lý Ticket (Audit Trail Feed)
+                    </h2>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#8a8da5" }}>
+                      Minh chứng chuỗi thực thi qua từng Workflow n8n từ lúc tiếp nhận đến khi hoàn tất.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="ticket-table-wrap">
+                  <table className="ticket-table full-table">
+                    <thead>
+                      <tr>
+                        <th>MÃ TICKET / TIÊU ĐỀ</th>
+                        <th>PHÂN LOẠI & ƯU TIÊN</th>
+                        <th>ĐỘI PHỤ TRÁCH (WF04)</th>
+                        <th>VẾT THỰC THI PIPELINE (TRACE)</th>
+                        <th>CAM KẾT SLA (WF06/08)</th>
+                        <th>THỜI GIAN GHI SỔ (WF09)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLoading ? (
+                        <tr>
+                          <td colSpan={6} className="empty-state">
+                            <span className="loading-indicator" /> Đang tải bản ghi kiểm toán từ MongoDB Atlas...
+                          </td>
+                        </tr>
+                      ) : auditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="empty-state">
+                            Chưa có bản ghi Audit nào trong cơ sở dữ liệu.
+                          </td>
+                        </tr>
+                      ) : (
+                        auditLogs.map((log: any, idx: number) => (
+                          <tr key={log._id || idx}>
+                            <td>
+                              <strong>{log.ticketId || `TCK-${log._id?.slice(-6)}`}</strong>
+                              <span className="ticket-title" style={{ maxWidth: "260px" }}>
+                                {log.title || "Ticket sự cố CNTT"}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ display: "inline-block", marginRight: "8px", fontWeight: 600 }}>
+                                {categoryLabels[log.category] || log.category || "General"}
+                              </span>
+                              <Priority priority={log.priority || "Medium"} />
+                            </td>
+                            <td>
+                              <span style={{
+                                fontWeight: log.assignedTeam?.includes("VIP") ? 800 : 600,
+                                color: log.assignedTeam?.includes("VIP") ? "#7c3aed" : "#334155"
+                              }}>
+                                {log.assignedTeam || "IT General"}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                                {(Array.isArray(log.workflowTrace) ? log.workflowTrace : ["WF04", "WF05", "WF06", "WF09"]).map((wf: string) => (
+                                  <span
+                                    key={wf}
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: 800,
+                                      padding: "3px 6px",
+                                      borderRadius: "5px",
+                                      background: wf === "WF04" ? "#e0e7ff" : wf === "WF05" ? "#fef3c7" : wf === "WF06" ? "#dcfce7" : "#ede9fe",
+                                      color: wf === "WF04" ? "#3730a3" : wf === "WF05" ? "#92400e" : wf === "WF06" ? "#166534" : "#5b21b6"
+                                    }}
+                                  >
+                                    {wf}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "11px", color: "#64748b" }}>
+                                {log.sla?.targetHours ? `${log.sla.targetHours} giờ` : "Theo chuẩn ITIL"}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "11px", color: "#8a8da5" }}>
+                                {log.auditTimestamp ? new Date(log.auditTimestamp).toLocaleString("vi-VN") : "Gần đây"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
 
           <footer className="footer">
@@ -1687,6 +2154,25 @@ export default function Home() {
             </div>
 
             <div className="modal-actions">
+              {currentUser.role === "admin" && (
+                <button
+                  type="button"
+                  style={{
+                    background: "#fee2e2",
+                    color: "#b91c1c",
+                    border: "1px solid #fecaca",
+                    borderRadius: "8px",
+                    padding: "11px 16px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    marginRight: "auto",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => handleDeleteTicket(selectedTicket.id)}
+                >
+                  🗑 Xóa ticket vĩnh viễn (Admin)
+                </button>
+              )}
               <button
                 type="button"
                 className="secondary-button"
