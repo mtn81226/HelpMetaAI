@@ -12,8 +12,7 @@
     "test:wf05": "node tests/test-wf05-duplicate-detection.mjs",
     "test:wf06": "node tests/test-wf06-support-response.mjs",
     "test:e2e": "node tests/test-e2e-pipeline.mjs",
-    "test:workflows": "node tests/test-wf04-team-assignment.mjs && node tests/test-wf05-duplicate-detection.mjs && node tests/test-wf06-support-response.mjs && node tests/test-e2e-pipeline.mjs",
-    "tunnel": "bash scripts/start-tunnels.sh"
+    "test:workflows": "node tests/test-wf04-team-assignment.mjs && node tests/test-wf05-duplicate-detection.mjs && node tests/test-wf06-support-response.mjs && node tests/test-e2e-pipeline.mjs"
   },
   "dependencies": {
     "mongoose": "^9.11.1",
