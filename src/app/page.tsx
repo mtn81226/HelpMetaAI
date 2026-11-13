@@ -91,7 +91,7 @@ const navItems: {
   { id: "chat", icon: "✳", label: "Trợ lý AI" },
   { id: "tickets", icon: "▤", label: "Quản lý ticket" },
   { id: "knowledge", icon: "▧", label: "Kho kiến thức" },
-  { id: "audit", icon: "👑", label: "Audit Log & Pipeline", adminOnly: true },
+  { id: "audit", icon: "▨", label: "Audit Log & Pipeline", adminOnly: true },
 ];
 
 const guides: Record<string, Guide> = {
@@ -810,21 +810,6 @@ export default function Home() {
                   {ticketSummary.open + ticketSummary.inProgress}
                 </span>
               )}
-              {item.id === "audit" && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: "linear-gradient(135deg, #7c6af3, #5744d5)",
-                    color: "#fff",
-                    borderRadius: "6px",
-                    padding: "2px 6px",
-                    fontSize: "9px",
-                    fontWeight: 800,
-                  }}
-                >
-                  ADMIN
-                </span>
-              )}
             </button>
           ))}
         </nav>
@@ -877,44 +862,23 @@ export default function Home() {
           </div>
 
           <div className="top-actions">
-            {currentUser.role === "admin" ? (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "linear-gradient(135deg, #f5f3ff, #ebe5ff)",
-                  border: "1px solid #d4c7ff",
-                  color: "#5b45db",
-                  fontWeight: 800,
-                  fontSize: "11px",
-                  padding: "6px 12px",
-                  borderRadius: "20px",
-                  boxShadow: "0 2px 6px rgba(91, 69, 219, 0.12)",
-                }}
-              >
-                <span>👑</span>
-                <span>QUẢN TRỊ VIÊN HỆ THỐNG</span>
-              </span>
-            ) : (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
-                  color: "#166534",
-                  fontWeight: 700,
-                  fontSize: "11px",
-                  padding: "6px 12px",
-                  borderRadius: "20px",
-                }}
-              >
-                <span>👤</span>
-                <span>NHÂN VIÊN HELPDESK (L1)</span>
-              </span>
-            )}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: currentUser.role === "admin" ? "#f5f3ff" : "#f0fdf4",
+                border: currentUser.role === "admin" ? "1px solid #e0d7fe" : "1px solid #bbf7d0",
+                color: currentUser.role === "admin" ? "#6856e8" : "#166534",
+                fontWeight: 700,
+                fontSize: "11px",
+                padding: "5px 11px",
+                borderRadius: "16px",
+              }}
+            >
+              <span>{currentUser.role === "admin" ? "✦" : "●"}</span>
+              <span>{currentUser.role === "admin" ? "Quản trị viên" : "Nhân viên Helpdesk"}</span>
+            </span>
 
             <span className={`system-status ${apiError ? "system-status-error" : ""}`}>
               <i /> {apiError ? "Kết nối ticket gián đoạn" : "Hệ thống hoạt động"}
@@ -946,91 +910,6 @@ export default function Home() {
         <div className="content">
           {page === "overview" && (
             <>
-              {currentUser.role === "admin" ? (
-                <div style={{
-                  background: "linear-gradient(135deg, #2b274c, #1f1d36)",
-                  color: "#ffffff",
-                  borderRadius: "14px",
-                  padding: "16px 22px",
-                  marginBottom: "24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "14px",
-                  boxShadow: "0 8px 24px rgba(31, 29, 54, 0.2)"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <span style={{ fontSize: "24px" }}>🛡️</span>
-                    <div>
-                      <strong style={{ fontSize: "14px", display: "block" }}>
-                        Bảng Điều Khiển Quản Trị Hệ Thống (Admin Control Center)
-                      </strong>
-                      <span style={{ fontSize: "11px", color: "#a5a3c2" }}>
-                        Bạn đang có quyền tối cao: Giám sát toàn bộ 9 n8n Workflows, phân bổ VIP và quản lý bản ghi MongoDB Atlas.
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <span style={{
-                      background: "#3e3868",
-                      padding: "5px 10px",
-                      borderRadius: "8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: "#6ee7b7"
-                    }}>
-                      ● n8n Workflows: 9/9 Active
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPage("audit")}
-                      style={{
-                        background: "#6856e8",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "8px",
-                        padding: "7px 14px",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        cursor: "pointer"
-                      }}
-                    >
-                      Xem Audit Log WF09 →
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  color: "#334155",
-                  borderRadius: "12px",
-                  padding: "12px 18px",
-                  marginBottom: "20px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: "12px"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span>ℹ️</span>
-                    <span>
-                      <strong>Không gian làm việc Nhân viên kỹ thuật:</strong> Bạn có quyền tiếp nhận, xử lý sự cố L1/L2 và cập nhật trạng thái ticket. Các quyền quản trị máy chủ và xóa ticket chỉ thuộc về Quản trị viên.
-                    </span>
-                  </div>
-                  <span style={{
-                    fontSize: "11px",
-                    background: "#e2e8f0",
-                    color: "#475569",
-                    padding: "4px 8px",
-                    borderRadius: "6px",
-                    fontWeight: 600
-                  }}>
-                    Phân quyền L1 Support
-                  </span>
-                </div>
-              )}
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">TỔNG QUAN KHÔNG GIAN LÀM VIỆC</div>
