@@ -152,7 +152,7 @@ Nếu chưa đủ thông tin, hãy nêu điều cần kiểm tra thêm.
   return classification;
 }
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 500, 1000];
 const VALID_STATUSES = ['Open', 'In Progress', 'Resolved'];
 
 function escapeRegex(value: string) {
@@ -187,14 +187,30 @@ export async function GET(request: Request) {
     }
     const query = filters.length ? { $and: filters } : {};
 
-    const [total, allTickets, open, inProgress, resolved, urgent] = await Promise.all([
+    const [total, allTickets, open, inProgress, resolved, urgent, categoryAgg, priorityAgg] = await Promise.all([
       Ticket.countDocuments(query),
       Ticket.countDocuments({}),
       Ticket.countDocuments({ status: 'Open' }),
       Ticket.countDocuments({ status: 'In Progress' }),
       Ticket.countDocuments({ status: 'Resolved' }),
       Ticket.countDocuments({ priority: { $in: ['Critical', 'High'] }, status: { $ne: 'Resolved' } }),
+      Ticket.aggregate([
+        { $group: { _id: '$category', count: { $sum: 1 } } }
+      ]),
+      Ticket.aggregate([
+        { $group: { _id: '$priority', count: { $sum: 1 } } }
+      ]),
     ]);
+
+    const categoryMap: Record<string, number> = {};
+    for (const item of categoryAgg) {
+      if (item._id) categoryMap[item._id] = item.count;
+    }
+
+    const priorityMap: Record<string, number> = {};
+    for (const item of priorityAgg) {
+      if (item._id) priorityMap[item._id] = item.count;
+    }
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const page = Math.min(requestedPage, totalPages);
@@ -265,7 +281,15 @@ export async function GET(request: Request) {
           limit,
           total,
           totalPages,
-          summary: { total: allTickets, open, inProgress, resolved, urgent },
+          summary: {
+            total: allTickets,
+            open,
+            inProgress,
+            resolved,
+            urgent,
+            categories: categoryMap,
+            priorities: priorityMap,
+          },
         },
       },
       { status: 200 }
