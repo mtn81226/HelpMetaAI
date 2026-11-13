@@ -33,8 +33,8 @@ const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema(
 }, { timestamps: true, collection: 'users' }));
 
 const accounts = [
-  { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD, name: 'Mai Phương Dương', role: 'admin' },
-  { email: process.env.DEMO_USER_EMAIL, password: process.env.DEMO_USER_PASSWORD, name: 'Nhân viên Helpdesk', role: 'user' },
+  { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD, name: process.env.ADMIN_NAME || 'Trương Thị Mộng Ngân', role: 'admin' },
+  { email: process.env.DEMO_USER_EMAIL, password: process.env.DEMO_USER_PASSWORD, name: process.env.DEMO_USER_NAME || 'Nhân viên Helpdesk', role: 'user' },
 ];
 if (process.env.ADDITIONAL_USER_EMAIL && process.env.ADDITIONAL_USER_PASSWORD) {
   accounts.push({

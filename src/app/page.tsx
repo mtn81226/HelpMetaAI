@@ -268,6 +268,53 @@ export default function Home() {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [dashboardTickets, setDashboardTickets] = useState<Ticket[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string }>({
+    name: "Trương Thị Mộng Ngân",
+    email: "ngan@helpdesk.meta.ai",
+    role: "admin",
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("currentUser");
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      } else {
+        fetch("/api/auth/me")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.authenticated && data.user) {
+              setCurrentUser(data.user);
+              localStorage.setItem("currentUser", JSON.stringify(data.user));
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("currentUser");
+      window.location.href = "/login";
+    }
+  };
+
+  const userInitials = currentUser?.name
+    ? currentUser.name
+        .split(" ")
+        .filter(Boolean)
+        .slice(-2)
+        .map((w) => w[0].toUpperCase())
+        .join("")
+    : "MN";
+
+  const shortName = currentUser?.name
+    ? currentUser.name.split(" ").filter(Boolean).pop() || "Ngân"
+    : "Ngân";
   const [ticketSummary, setTicketSummary] = useState<TicketSummary>(emptyTicketSummary);
   const [ticketTotal, setTicketTotal] = useState(0);
   const [ticketTotalPages, setTicketTotalPages] = useState(1);
@@ -728,12 +775,17 @@ export default function Home() {
           </div>
 
           <div className="user-profile">
-            <div className="avatar">MP</div>
+            <div className="avatar" title={currentUser.name}>{userInitials}</div>
             <div className="user-info">
-              <strong>Mai Phương</strong>
-              <span>Nhân viên</span>
+              <strong title={currentUser.name}>{currentUser.name}</strong>
+              <span>{currentUser.role === "admin" ? "Quản trị viên" : "Nhân viên"}</span>
             </div>
-            <button className="more-button" aria-label="Tùy chọn">
+            <button
+              className="more-button"
+              aria-label="Đăng xuất"
+              title="Đăng xuất khỏi hệ thống"
+              onClick={handleLogout}
+            >
               ↪
             </button>
           </div>
@@ -772,7 +824,18 @@ export default function Home() {
               ♧<i className="notification-dot" />
             </button>
 
-            <div className="top-avatar">MP</div>
+            <div
+              className="top-avatar"
+              title={`${currentUser.name} (${currentUser.role === "admin" ? "Quản trị viên" : "Nhân viên"})`}
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                if (confirm(`Đang đăng nhập với: ${currentUser.name}\nBạn có muốn đăng xuất không?`)) {
+                  handleLogout();
+                }
+              }}
+            >
+              {userInitials}
+            </div>
           </div>
         </header>
 
@@ -783,7 +846,7 @@ export default function Home() {
                 <div>
                   <div className="eyebrow">TỔNG QUAN KHÔNG GIAN LÀM VIỆC</div>
                   <h1>
-                    Chào buổi tối, Phương{" "}
+                    Chào buổi tối, {shortName}{" "}
                     <span className="wave">✦</span>
                   </h1>
                   <p>
@@ -970,7 +1033,7 @@ export default function Home() {
                   </div>
 
                   <div className="assistant-message">
-                    Xin chào Phương! 👋
+                    Xin chào {shortName}! 👋
                     <br />
                     <br />
                     Mình có thể giúp bạn chẩn đoán lỗi, tìm hướng dẫn
