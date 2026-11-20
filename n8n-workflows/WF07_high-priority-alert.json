@@ -185,6 +185,25 @@
         2880,
         0
       ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "helpdesk-alert@company.com",
+        "toEmail": "={{ ($json.alertRecipients && Array.isArray($json.alertRecipients)) ? $json.alertRecipients.join(\",\") : ($json.alertRecipients || \"it-admin@company.com\") }}",
+        "subject": "={{ \"🚨 [CẢNH BÁO IT \" + $json.priority + \"] Ticket #\" + $json.ticketId + \" - \" + $json.title }}",
+        "text": "={{ \"Kính gửi Đội hỗ trợ kỹ thuật,\\n\\nHệ thống HelpMate AI phát hiện sự cố mức độ \" + $json.priority + \" cần xử lý khẩn cấp:\\n\\n- Mã sự cố: \" + $json.ticketId + \"\\n- Tiêu đề: \" + $json.title + \"\\n- Phân loại: \" + $json.category + \"\\n- Đội phụ trách: \" + $json.assignedTeam + \"\\n- Hàng đợi: \" + $json.assignmentQueue + \"\\n- Nội dung cảnh báo: \" + ($json.alertMessage || $json.description) + \"\\n\\nTrân trọng,\\nHệ thống Tự động hóa HelpMate AI\" }}",
+        "options": {}
+      },
+      "id": "e7b01d4a-9b1e-4c7a-bf21-99e8a15dd701",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        180
+      ],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -283,6 +302,11 @@
             "node": "Append Workflow Trace",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -319,6 +343,9 @@
           }
         ]
       ]
+    },
+    "Send Email Alert": {
+      "main": []
     }
   },
   "active": false,
