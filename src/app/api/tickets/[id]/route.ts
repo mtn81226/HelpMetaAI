@@ -102,6 +102,18 @@ export async function PATCH(
       updateData.description = body.description.trim();
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, "aiSuggestion")) {
+      if (typeof body.aiSuggestion === "string") {
+        updateData.aiSuggestion = body.aiSuggestion.trim();
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "aiReason")) {
+      if (typeof body.aiReason === "string") {
+        updateData.aiReason = body.aiReason.trim();
+      }
+    }
+
     // Không cho phép gửi request rỗng hoặc cập nhật trường không được hỗ trợ.
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

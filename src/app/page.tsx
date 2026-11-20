@@ -455,6 +455,7 @@ export default function Home() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [updatingTicketId, setUpdatingTicketId] = useState("");
+  const [generatingAiSuggest, setGeneratingAiSuggest] = useState(false);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -773,6 +774,97 @@ export default function Home() {
     } finally {
       setUpdatingTicketId("");
     }
+  }
+
+  async function handleGenerateAiSuggestion(ticket: Ticket) {
+    if (generatingAiSuggest || !ticket) return;
+
+    setGeneratingAiSuggest(true);
+    notify("AI đang phân tích sự cố và xây dựng hướng xử lý 4 bước...");
+
+    try {
+      const response = await fetch("/api/tickets/ai/suggest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: ticket.title,
+          description: ticket.description,
+          category: ticket.category,
+          priority: ticket.priority,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.suggestion) {
+        throw new Error(result.error || "Không thể nhận phản hồi từ mô hình AI.");
+      }
+
+      const suggestion = String(result.suggestion);
+
+      // Cập nhật giao diện ngay
+      setSelectedTicket((prev) =>
+        prev && prev.id === ticket.id
+          ? { ...prev, aiSuggestion: suggestion }
+          : prev
+      );
+
+      setTickets((old) =>
+        old.map((item) =>
+          item.id === ticket.id ? { ...item, aiSuggestion: suggestion } : item
+        )
+      );
+
+      // Lưu cập nhật vào cơ sở dữ liệu để persist
+      try {
+        await fetch(`/api/tickets/${encodeURIComponent(ticket.id)}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ aiSuggestion: suggestion }),
+        });
+      } catch (saveError) {
+        console.warn("Không thể lưu aiSuggestion vào MongoDB:", saveError);
+      }
+
+      notify("✦ Đã tạo đề xuất xử lý chuyên sâu từ AI thành công!");
+    } catch (error) {
+      console.error("AI suggestion error:", error);
+      notify(
+        getErrorMessage(
+          error,
+          "Không thể tạo đề xuất AI. Vui lòng kiểm tra dịch vụ Ollama."
+        )
+      );
+    } finally {
+      setGeneratingAiSuggest(false);
+    }
+  }
+
+  function handleConvertChatToTicket(aiMessageText: string, messageIndex: number) {
+    let userPrompt = "";
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        userPrompt = messages[i].text.trim();
+        break;
+      }
+    }
+
+    const title = userPrompt
+      ? (userPrompt.length > 70 ? userPrompt.slice(0, 67) + "..." : userPrompt)
+      : "Yêu cầu hỗ trợ từ AI Chat";
+
+    const description = userPrompt
+      ? `[Yêu cầu hỗ trợ từ người dùng]:\n${userPrompt}\n\n[Trợ lý HelpMate AI tư vấn sơ bộ]:\n${aiMessageText}`
+      : aiMessageText;
+
+    setNewTitle(title);
+    setNewDescription(description);
+    setShowNewTicket(true);
+    notify("Đã chuyển nội dung cuộc trò chuyện vào form tạo ticket!");
   }
 
   async function sendMessage(text = chatInput) {
@@ -1709,7 +1801,7 @@ export default function Home() {
                 </div>
 
                 <div className="chat-messages">
-                  {messages.map((message) => (
+                  {messages.map((message, idx) => (
                     <div
                       key={message.id}
                       className={`message-row ${
@@ -1721,7 +1813,30 @@ export default function Home() {
                       )}
 
                       <div className={`message-bubble ${message.role}`}>
-                        {message.text}
+                        <div style={{ whiteSpace: "pre-wrap" }}>{message.text}</div>
+                        {message.role === "ai" && message.id !== "welcome" && (
+                          <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed rgba(255,255,255,0.2)" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleConvertChatToTicket(message.text, idx)}
+                              style={{
+                                background: "rgba(59, 130, 246, 0.15)",
+                                border: "1px solid rgba(59, 130, 246, 0.4)",
+                                color: "#93c5fd",
+                                borderRadius: "6px",
+                                padding: "4px 10px",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                              }}
+                            >
+                              🎫 Tạo ticket từ sự cố này
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {message.role === "user" && (
@@ -1751,16 +1866,43 @@ export default function Home() {
                       void sendMessage("Máy tính không kết nối được Wi-Fi")
                     }
                   >
-                    ⌁ Lỗi Wi-Fi
+                    📶 Lỗi Wi-Fi
                   </button>
 
                   <button
                     disabled={sendingMessage}
                     onClick={() =>
-                      void sendMessage("Tôi quên mật khẩu tài khoản")
+                      void sendMessage("Tôi quên mật khẩu tài khoản đăng nhập")
                     }
                   >
-                    ♙ Tài khoản
+                    🔑 Quên mật khẩu
+                  </button>
+
+                  <button
+                    disabled={sendingMessage}
+                    onClick={() =>
+                      void sendMessage("Máy in văn phòng bị kẹt giấy và báo đèn đỏ")
+                    }
+                  >
+                    🖨️ Máy in kẹt giấy
+                  </button>
+
+                  <button
+                    disabled={sendingMessage}
+                    onClick={() =>
+                      void sendMessage("Phần mềm kế toán MISA bị treo không vào được cơ sở dữ liệu")
+                    }
+                  >
+                    📊 Lỗi PM Kế toán
+                  </button>
+
+                  <button
+                    disabled={sendingMessage}
+                    onClick={() =>
+                      void sendMessage("Cảnh báo nghi ngờ nhận được email lừa đảo (phishing)")
+                    }
+                  >
+                    🛡️ Nghi ngờ Phishing
                   </button>
 
                   <button
@@ -2327,10 +2469,37 @@ export default function Home() {
             </div>
 
             <div className="ticket-detail-section ai-suggestion-box">
-              <h3>✦ Đề xuất xử lý từ AI</h3>
-              <p className="ticket-detail-description">
-                {selectedTicket.aiSuggestion ||
-                  "Chưa có đề xuất xử lý. Hãy kiểm tra backend có gọi Ollama và lưu aiSuggestion vào MongoDB hay không."}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                <h3 style={{ margin: 0 }}>✦ Đề xuất xử lý từ AI</h3>
+                <button
+                  type="button"
+                  style={{
+                    background: generatingAiSuggest ? "#4b5563" : "linear-gradient(135deg, #6366f1, #4f46e5)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: generatingAiSuggest ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 4px rgba(79, 70, 229, 0.2)",
+                    transition: "all 0.2s ease"
+                  }}
+                  disabled={generatingAiSuggest}
+                  onClick={() => handleGenerateAiSuggestion(selectedTicket)}
+                >
+                  {generatingAiSuggest ? "⏳ Đang phân tích cùng AI..." : "✨ Chẩn đoán chuyên sâu với AI"}
+                </button>
+              </div>
+              <p className="ticket-detail-description" style={{ whiteSpace: "pre-wrap" }}>
+                {selectedTicket.aiSuggestion || (
+                  <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+                    Chưa có đề xuất xử lý. Bấm nút &quot;Chẩn đoán chuyên sâu với AI&quot; ở trên để mô hình phân tích chi tiết quy trình khắc phục 4 bước.
+                  </span>
+                )}
               </p>
             </div>
 

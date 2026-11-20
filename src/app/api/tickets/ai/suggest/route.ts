@@ -17,16 +17,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      process.env.OLLAMA_URL ??
-        "http://127.0.0.1:11434/api/chat",
-      {
+    const baseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/+$/, "");
+    const model = process.env.OLLAMA_MODEL || "qwen2.5:3b";
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: process.env.OLLAMA_MODEL ?? "qwen2.5:7b",
+          model,
           stream: false,
           messages: [
             {
@@ -78,7 +78,7 @@ Hãy tạo đề xuất xử lý cho ticket này.
       throw new Error("Ollama không trả về nội dung đề xuất.");
     }
 
-    return NextResponse.json({ suggestion });
+    return NextResponse.json({ success: true, suggestion });
   } catch (error) {
     console.error("AI suggestion error:", error);
 
