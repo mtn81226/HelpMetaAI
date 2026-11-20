@@ -63,7 +63,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const hours={High:4,Medium:24,Low:72}; const targetHours=hours[$json.priority]??24; return [{ json: { ...$json, slaTargetHours: targetHours } }];"
+        "jsCode": "const priority = $json.priority || 'Medium';\nconst slaHoursMap = {\n  Critical: 1,\n  High: 4,\n  Medium: 8,\n  Low: 24\n};\nconst targetHours = slaHoursMap[priority] || 8;\nconst targetMinutes = targetHours * 60;\n\nreturn [{\n  json: {\n    ...$json,\n    slaTargetHours: targetHours,\n    slaTargetMinutes: targetMinutes,\n    slaPriority: priority\n  }\n}];"
       },
       "position": [
         960,
@@ -89,7 +89,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const due=new Date(new Date($json.slaCreatedAt).getTime()+$json.slaTargetHours*3600000); return [{ json: { ...$json, slaDueAt: due.toISOString() } }];"
+        "jsCode": "const targetHours = $json.slaTargetHours || 8;\nconst createdAt = $json.createdAt ? new Date($json.createdAt) : new Date();\nconst dueAt = new Date(createdAt.getTime() + targetHours * 60 * 60 * 1000);\n\nreturn [{\n  json: {\n    ...$json,\n    slaDueAt: dueAt.toISOString(),\n    slaDueAtFormatted: dueAt.toLocaleString('vi-VN'),\n    slaStatus: 'Within SLA',\n    slaElapsedMinutes: 0\n  }\n}];"
       },
       "position": [
         1440,
@@ -115,7 +115,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const breached=Date.now()>new Date($json.slaDueAt).getTime()&&!['Resolved','Closed'].includes($json.status); return [{ json: { ...$json, sla: { targetHours: $json.slaTargetHours, dueAt: $json.slaDueAt, elapsedHours: $json.slaElapsedHours, breached, monitoringMode: 'evaluated when workflow runs; add Schedule Trigger and database query for recurring monitoring' } } }];"
+        "jsCode": "const dueAt = $json.slaDueAt ? new Date($json.slaDueAt) : new Date();\nconst now = new Date();\nconst isBreached = now > dueAt;\nconst slaState = isBreached ? 'Breached' : 'Within SLA';\n\nreturn [{\n  json: {\n    ...$json,\n    sla: {\n      targetHours: $json.slaTargetHours || 8,\n      dueAt: $json.slaDueAt,\n      dueAtFormatted: $json.slaDueAtFormatted,\n      status: slaState,\n      isBreached: isBreached\n    }\n  }\n}];"
       },
       "position": [
         1920,

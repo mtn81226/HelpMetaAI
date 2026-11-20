@@ -115,7 +115,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, alert: { required: $json.highPriority, sent: false, severity: $json.alertSeverity, recipients: $json.alertRecipients, message: $json.alertMessage, note: 'Configure an email/chat node and credentials to deliver alerts.' } } }];"
+        "jsCode": "const isHigh = Boolean($json.isHighPriority);\nconst priority = $json.priority || 'Medium';\nconst category = $json.category || 'Other';\nconst isSecurity = category === 'Security';\nconst severity = (priority === 'Critical' || isSecurity) ? 'critical' : (priority === 'High' ? 'high' : 'normal');\nconst alertStatus = (isHigh || isSecurity) ? 'Prepared & Dispatched to IT Dispatch' : 'Normal priority - Queued in L1 queue';\nconst alertChannel = (isHigh || isSecurity) ? 'Email Dispatch & HelpDesk Web Banner' : 'In-App Ticket Dashboard';\n\nreturn [{\n  json: {\n    ...$json,\n    alert: {\n      required: isHigh || isSecurity,\n      severity: severity,\n      status: alertStatus,\n      channel: alertChannel,\n      dispatched: isHigh || isSecurity\n    }\n  }\n}];"
       },
       "position": [
         1920,

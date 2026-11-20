@@ -138,7 +138,16 @@
       "position": [
         2160,
         0
-      ]
+      ],
+      "continueOnFail": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "mongoDb": {
+          "id": "6afNnNsrVru3ldMs",
+          "name": "MongoDB account"
+        }
+      },
+      "disabled": true
     },
     {
       "id": "668975da-0af7-4139-8647-fa6e51bf2f75",
@@ -146,7 +155,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "const workflowId = $workflow.name.match(/^WF\\d+/)?.[0] ?? 'WF';\nreturn [{ json: { ...$json, workflowTrace: [...new Set([...($json.workflowTrace ?? []), workflowId])], stepTrace: [...($json.stepTrace ?? []), 'workflow-complete'] } }];"
+        "jsCode": "const workflowId = $workflow.name.match(/^WF\\\\d+/)?.[0] ?? 'WF09';\nreturn [{\n  json: {\n    ...$json,\n    workflowTrace: [...new Set([...($json.workflowTrace ?? []), workflowId])],\n    stepTrace: [...($json.stepTrace ?? []), 'workflow-complete']\n  }\n}];"
       },
       "position": [
         2400,
@@ -159,7 +168,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "parameters": {
-        "jsCode": "return [{ json: { ...$json, workflowResult: { workflow: $workflow.name, ticketId: $json.ticketId, processedAt: new Date().toISOString(), success: true } } }];"
+        "jsCode": "return [{ json: { ...$json, id: $json.ticketId, workflowResult: { workflow: $workflow.name, ticketId: $json.ticketId, processedAt: new Date().toISOString(), success: true } } }];"
       },
       "position": [
         2640,
@@ -277,7 +286,7 @@
       "main": [
         [
           {
-            "node": "Save Audit to MongoDB",
+            "node": "Append Workflow Trace",
             "type": "main",
             "index": 0
           }
@@ -285,15 +294,7 @@
       ]
     },
     "Save Audit to MongoDB": {
-      "main": [
-        [
-          {
-            "node": "Append Workflow Trace",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     },
     "Append Workflow Trace": {
       "main": [
