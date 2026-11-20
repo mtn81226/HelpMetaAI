@@ -203,7 +203,13 @@
         180
       ],
       "continueOnFail": true,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "smtpDispatchAccount",
+          "name": "HelpDesk SMTP Alert Dispatcher"
+        }
+      }
     }
   ],
   "connections": {
